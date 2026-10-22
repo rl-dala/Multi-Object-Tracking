@@ -51,17 +51,18 @@ for sequence in sequences:
         if result.boxes and result.boxes.is_track:
             boxes_center = result.boxes.xywh.cpu()
             boxes = result.boxes.xyxy.cpu()
+            confidences = result.boxes.conf.cpu()
             track_ids = result.boxes.id.int().cpu().tolist()
             frame_number = int(image_path.stem)
             
             for box_corners, box_center, track_id in zip(boxes, boxes_center, track_ids):
-                x1, y1, x2, y2 = box_corners
+                x_left, y_left, x_right, y_right = box_corners
                 x_center, y_center, w, h = box_center
                 track = track_history[track_id]
                 track.append((frame_number,
-                              float(x1), float(y1),
-                              float(x2), float(y2),
-                              float(x_center), float(y_center)))  # x, y center point
+                              float(x_left), float(y_left),
+                              float(w), float(h),
+                              float(confidences),))  # x, y center point
 
         if not cv2.imwrite(str(output_file), image):
             raise RuntimeError(f"Failed to save image {output_file}")
@@ -71,11 +72,11 @@ for sequence in sequences:
     with open(sequence_output_dir / f"{sequence.name}.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["frame", "track_id", 
-                         "x1", "y1", "x2", "y2",
-                         "center_x", "center_y"])
+                         "x_left", "y_left", "w", "h",
+                         "confidence"])
         for track_id, positions in track_history.items():
-            for frame_number,x1, y1, x2, y2, x_center, y_center in positions:
+            for frame_number,x_left, y_left, w, h, confidence in positions:
                 writer.writerow([frame_number, track_id,
-                                 x1, y1, x2, y2,
-                                 x_center, y_center])
+                                 x_left, y_left, w, h,
+                                 confidence])
     print(f"CSV results saved to {sequence_output_dir / sequence.name}.csv")
